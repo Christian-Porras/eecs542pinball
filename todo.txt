@@ -1,0 +1,19 @@
+Software
+- Create Class for defining pinball machine states
+- Create Logic for transitioning between states
+- Game Logic and flow based on states
+- Figure out the Seven Segment Display
+- Figure out the SD card reader
+- Create Text File format
+
+Hardware
+- Install Slingshots
+- Build and Install Switch Targets
+- Random Rollover Switches Throughout Map
+- Rollover Switch to detect when ball drains
+- Peg placed to keep the ball from draining too often
+
+Need to Buy
+- Screws and nuts of the standard size
+- A second Arduino for more inputs/outputs
+- Screws and nuts for the pegs
