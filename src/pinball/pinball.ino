@@ -1,6 +1,8 @@
 #include <SPI.h>
+#include <MuxShield.h>
 
-#define DEBUG_MODE false
+#define SOLENOIDS_ON true
+#define ENABLE_DEBUG true
 
 #define PDB_COMMAND_WRITE 1
 
@@ -29,12 +31,12 @@ struct s_coils
 struct s_coils coils [num_coils] = {
     
 //  Coil Enum         Switch Num    Coil Num     Coil String
-  { left_flipper,     3,            2,           "Left Flipper" },
-  { right_flipper,    3,            1,           "Right Flipper" },
-  { left_bumper,      4,            6,           "Left Bumper" },
-  { right_bumper,     5,            5,           "Right Bumper" },
-  { top_bumper,       6,            3,           "Top Bumper" },
-  { left_slingshot,   8,            7,           "Left Slingshot" },
+  { left_flipper,     0,            2,           "Left Flipper" },
+  { right_flipper,    0,            1,           "Right Flipper" },
+  { left_bumper,      1,            6,           "Left Bumper" },
+  { right_bumper,     2,            5,           "Right Bumper" },
+  { top_bumper,       3,            3,           "Top Bumper" },
+  { left_slingshot,   4,            7,           "Left Slingshot" },
   { right_slingshot,  7,            7,           "Right Slingshot" }
 };
 
@@ -60,40 +62,51 @@ void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
   interrupts();
 }
 
+//Initialize the Mux Shield
+MuxShield muxShield;
+#define input_port 2
+
 void setup() {
-  
+
+  // Initialize SPI for Solenoid Driver Board
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
   SPI.setClockDivider(SPI_CLOCK_DIV2);  // Need 8 MHz.  So use DIV2 on a 16 MHz board.
 
+  // Start Serial for communication with Serial Monitor
   Serial.begin(9600);
 
-  // Initialize coil pins as outputs
-  for( int i = 0; i < num_coils; i++ )
-  {
-    pinMode( coils[i].switch_num, OUTPUT );
-  }
+  // Initialize the input port on the mux shield as digital input
+  muxShield.setMode( input_port, DIGITAL_IN );
+
+  // Write all the solenoids low intially
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
 }
 
 void loop() {
 
+  // Used to store which coils to be activated
   byte solenoids = 0;
 
   for( int i = 0; i < num_coils; i++ )
   {
-    if( digitalRead( coils[i].switch_num ) )
+    if( muxShield.digitalReadMS( input_port, coils[i].switch_num ) )
     {
-      solenoids += ( 1 << ( coils[i].coil_num ) ); 
-      Serial.println( strcat( coils[i].coil_name, " Activated" ) );
+      solenoids += ( 1 << ( coils[i].coil_num - 1 ) );
+
+      #if ENABLE_DEBUG
+      Serial.print( coils[i].coil_name );
+      Serial.print( " Activated." );
+      Serial.println();
+      #endif
     }
   }
 
-  #if !(DEBUG_MODE)
+  #if SOLENOIDS_ON
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);  
   #endif
   
-  delay(20);
+  delay(50); // Amount of time the solenoids are powered
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
-  delay(10);
+  delay(20); // Amount of time the solenoid is off
 }
