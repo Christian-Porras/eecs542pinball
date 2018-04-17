@@ -9,14 +9,40 @@
 #define num_coils 7
 #define board 0
 
+//-------------------------
+//      SWITCHES
+//-------------------------
+unsigned char gameBalls = 0;      //tracks which ball is currently in play
+unsigned char player = 0;         //tracks the current player playing
+//-------------------------
+//      SCOREBOARD
+//-------------------------
+long scorePlayer[5] = {0,0,0,0,0}; // array to hold the current players' scores
+
+//-------------------------
+//      GAMEMODES
+//-------------------------
+#define NUM_BALLS 3
+
+enum{
+  INIT,
+  IDLE,
+  START,
+  PLAY,
+  GAMEOVER
+};
+
+//-------------------------
+//      COILS
+//-------------------------
 typedef enum e_coils
-{ 
-  left_flipper, 
-  right_flipper, 
-  left_bumper, 
-  right_bumper, 
-  top_bumper, 
-  left_slingshot, 
+{
+  left_flipper,
+  right_flipper,
+  left_bumper,
+  right_bumper,
+  top_bumper,
+  left_slingshot,
   right_slingshot
 } coil_t;
 
@@ -29,7 +55,7 @@ struct s_coils
 };
 
 struct s_coils coils [num_coils] = {
-    
+
 //  Coil Enum         Switch Num    Coil Num     Coil String
   { left_flipper,     0,            2,           "Left Flipper" },
   { right_flipper,    0,            1,           "Right Flipper" },
@@ -48,15 +74,15 @@ void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
   cmdWord[2] = bankAddr;
   cmdWord[3] = (data >> 4) & 0xF;
   cmdWord[4] = data & 0xF;
-  
+
   // Turn off interrupts so the transfer doesn't get interrupted.
   noInterrupts();
   // Hardcode transfers to minimize IDLEs between transfers.
-  // Using a for-loop adds 5 extra IDLEs between transfers.  
+  // Using a for-loop adds 5 extra IDLEs between transfers.
   SPI.transfer(cmdWord[0]);
-  SPI.transfer(cmdWord[1]); 
+  SPI.transfer(cmdWord[1]);
   SPI.transfer(cmdWord[2]);
-  SPI.transfer(cmdWord[3]); 
+  SPI.transfer(cmdWord[3]);
   SPI.transfer(cmdWord[4]);
   // Re-enable interrupts
   interrupts();
@@ -65,6 +91,8 @@ void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
 //Initialize the Mux Shield
 MuxShield muxShield;
 #define input_port 2
+
+unsigned char mode = IDLE;
 
 void setup() {
 
@@ -81,14 +109,61 @@ void setup() {
 
   // Write all the solenoids low intially
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
+
+  mode = IDLE;
 }
 
 void loop() {
 
-  // Used to store which coils to be activated
-  byte solenoids = 0;
+  switch (mode){
 
-  for( int i = 0; i < num_coils; i++ )
+    default:
+
+    case INIT: //--------------------------------------------------------------
+    delay(250);
+    delay(250);
+    delay(250);
+    delay(250);
+
+    player = 0;
+    scorePlayer[0] = 0;
+
+    mode = IDLE;
+    break;
+
+    case IDLE: //--------------------------------------------------------------
+
+    break;
+
+    case START: //-------------------------------------------------------------
+    gameBalls = 1;
+
+    //set score display to 0
+    break;
+
+    case PLAY: //--------------------------------------------------------------
+    //check switches and update scores
+
+    //if ball reaches outhole
+    // 1) turn off coils
+    // 2) increase gameBalls
+    // 3) check that gameBalls != maxBalls
+    // 4) if gameBalls == maxBalls -> GAMEOVER
+
+    case GAMEOVER:
+    //turn off solenoids
+
+    //reset all values to defaults
+
+    //send score to display
+
+    mode = INIT;
+    break;
+  }
+  // Used to store which coils to be activated
+  //byte solenoids = 0;
+
+/*  for( int i = 0; i < num_coils; i++ )
   {
     if( muxShield.digitalReadMS( input_port, coils[i].switch_num ) )
     {
@@ -103,10 +178,11 @@ void loop() {
   }
 
   #if SOLENOIDS_ON
-  sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);  
+  sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);
   #endif
-  
+
   delay(50); // Amount of time the solenoids are powered
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
   delay(20); // Amount of time the solenoid is off
+  */
 }
