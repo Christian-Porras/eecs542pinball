@@ -1,5 +1,7 @@
 #include <SPI.h>
 #include <MuxShield.h>
+#include "Adafruit_LED_Backpack-master/Adafruit_LEDBackpack.h"
+#include "Adafruit-GFX-Library-master/Adafruit_GFX.h"
 
 #define SOLENOIDS_ON true
 #define ENABLE_DEBUG true
@@ -10,13 +12,13 @@
 #define board 0
 
 typedef enum e_coils
-{ 
-  left_flipper, 
-  right_flipper, 
-  left_bumper, 
-  right_bumper, 
-  top_bumper, 
-  left_slingshot, 
+{
+  left_flipper,
+  right_flipper,
+  left_bumper,
+  right_bumper,
+  top_bumper,
+  left_slingshot,
   right_slingshot
 } coil_t;
 
@@ -29,7 +31,7 @@ struct s_coils
 };
 
 struct s_coils coils [num_coils] = {
-    
+
 //  Coil Enum         Switch Num    Coil Num     Coil String
   { left_flipper,     0,            2,           "Left Flipper" },
   { right_flipper,    0,            1,           "Right Flipper" },
@@ -48,15 +50,15 @@ void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
   cmdWord[2] = bankAddr;
   cmdWord[3] = (data >> 4) & 0xF;
   cmdWord[4] = data & 0xF;
-  
+
   // Turn off interrupts so the transfer doesn't get interrupted.
   noInterrupts();
   // Hardcode transfers to minimize IDLEs between transfers.
-  // Using a for-loop adds 5 extra IDLEs between transfers.  
+  // Using a for-loop adds 5 extra IDLEs between transfers.
   SPI.transfer(cmdWord[0]);
-  SPI.transfer(cmdWord[1]); 
+  SPI.transfer(cmdWord[1]);
   SPI.transfer(cmdWord[2]);
-  SPI.transfer(cmdWord[3]); 
+  SPI.transfer(cmdWord[3]);
   SPI.transfer(cmdWord[4]);
   // Re-enable interrupts
   interrupts();
@@ -83,8 +85,54 @@ void setup() {
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
 }
 
-void loop() {
+void testDisplay(){
+  // try to print a number thats too long
+  matrix.print(10000, DEC);
+  matrix.writeDisplay();
+  delay(500);
 
+  // print a hex number
+  matrix.print(0xBEEF, HEX);
+  matrix.writeDisplay();
+  delay(500);
+
+  // print a floating point
+  matrix.print(12.34);
+  matrix.writeDisplay();
+  delay(500);
+
+  // print with print/println
+  for (uint16_t counter = 0; counter < 9999; counter++) {
+    matrix.println(counter);
+    matrix.writeDisplay();
+    delay(10);
+  }
+
+  // method #2 - draw each digit
+  uint16_t blinkcounter = 0;
+  boolean drawDots = false;
+  for (uint16_t counter = 0; counter < 9999; counter ++) {
+    matrix.writeDigitNum(0, (counter / 1000), drawDots);
+    matrix.writeDigitNum(1, (counter / 100) % 10, drawDots);
+    matrix.drawColon(drawDots);
+    matrix.writeDigitNum(3, (counter / 10) % 10, drawDots);
+    matrix.writeDigitNum(4, counter % 10, drawDots);
+
+    blinkcounter+=50;
+    if (blinkcounter < 500) {
+      drawDots = false;
+    } else if (blinkcounter < 1000) {
+      drawDots = true;
+    } else {
+      blinkcounter = 0;
+    }
+    matrix.writeDisplay();
+    delay(10);
+  }
+}
+
+void loop() {
+  testDisplay();
   // Used to store which coils to be activated
   byte solenoids = 0;
 
@@ -103,9 +151,9 @@ void loop() {
   }
 
   #if SOLENOIDS_ON
-  sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);  
+  sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);
   #endif
-  
+
   delay(50); // Amount of time the solenoids are powered
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
   delay(20); // Amount of time the solenoid is off
