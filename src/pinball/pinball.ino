@@ -23,6 +23,7 @@ long scorePlayer[5] = {0,0,0,0,0}; // array to hold the current players' scores
 //      GAMEMODES
 //-------------------------
 #define NUM_BALLS 3
+#define MAX_SCORE 9999
 
 enum{
   INIT,
@@ -110,7 +111,7 @@ void setup() {
   // Write all the solenoids low intially
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
 
-  mode = IDLE;
+  mode = INIT;
 }
 
 void loop() {
@@ -126,40 +127,83 @@ void loop() {
     delay(250);
 
     player = 0;
-    scorePlayer[0] = 0;
+    scorePlayer[player] = 0;
 
     mode = IDLE;
     break;
 
     case IDLE: //--------------------------------------------------------------
+    //light show
 
+    //once start sensor detected, switch to start state
+    mode = START;
     break;
 
     case START: //-------------------------------------------------------------
     gameBalls = 1;
 
     //set score display to 0
+    scorePlayer[player] = 0;
+    updateScore(0, player);
     break;
 
     case PLAY: //--------------------------------------------------------------
+    byte solenoids = 0;
+
+    for( int i = 0; i < num_coils; i++ )
+    {
+      if( muxShield.digitalReadMS( input_port, coils[i].switch_num ) )
+      {
+        solenoids += ( 1 << ( coils[i].coil_num - 1 ) );
+
+        #if ENABLE_DEBUG
+        Serial.print( coils[i].coil_name );
+        Serial.print( " Activated." );
+        Serial.println();
+        #endif
+      }
+    }
+
+    #if SOLENOIDS_ON
+    sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);
+    #endif
+
+    delay(50); // Amount of time the solenoids are powered
+    sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
+    delay(20); // Amount of time the solenoid is off
+
     //check switches and update scores
 
+
     //if ball reaches outhole
-    // 1) turn off coils
-    // 2) increase gameBalls
-    // 3) check that gameBalls != maxBalls
-    // 4) if gameBalls == maxBalls -> GAMEOVER
+    if(outHole == /* high */){
+      // 1) turn off coils
+      // 2) increase gameBalls
+      gameBalls ++;
+      // 3) check that gameBalls != maxBalls
+      if(gameBalls > NUM_BALLS){
+        // 4) if gameBalls == maxBalls -> GAMEOVER
+        mode = GAMEOVER;
+      }
+    }
 
     case GAMEOVER:
     //turn off solenoids
 
-    //reset all values to defaults
-
     //send score to display
+    updateScore(0.0, player);
+    //reset all values to defaults
+    player = 0;
+    for(int i = 0; i < numPlayers; i++){
+      scorePlayer[i] = 0.0;
+    }
 
     mode = INIT;
     break;
   }
+
+
+
   // Used to store which coils to be activated
   //byte solenoids = 0;
 
@@ -185,4 +229,12 @@ void loop() {
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
   delay(20); // Amount of time the solenoid is off
   */
+}
+
+void updateScore(long score, int player){
+  scorePlayer[player] += score;
+
+  //send score to 7 segment
+
+  return;
 }
