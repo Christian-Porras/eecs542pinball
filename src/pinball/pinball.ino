@@ -161,6 +161,8 @@ void loop() {
       {
         solenoids += ( 1 << ( coils[i].coil_num - 1 ) );
 
+        updateScore(coils[i].score, player);
+
         #if ENABLE_DEBUG
         Serial.print( coils[i].coil_name );
         Serial.print( " Activated." );
@@ -181,15 +183,15 @@ void loop() {
 
 
     //if ball reaches outhole
-    if(outHole == /* high */){
+    //if(outHole == /* high */){
       // 1) turn off coils
       // 2) increase gameBalls
-      gameBalls ++;
+    /*  gameBalls ++;
       // 3) check that gameBalls != maxBalls
       if(gameBalls > NUM_BALLS){
         // 4) if gameBalls == maxBalls -> GAMEOVER
         mode = GAMEOVER;
-      }
+      }*/
     }
 
     case GAMEOVER:
