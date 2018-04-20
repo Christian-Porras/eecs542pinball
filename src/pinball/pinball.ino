@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include <MuxShield.h>
-#include <wire.h>
+#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include "Adafruit_LEDBackpack.h"
 
@@ -64,12 +64,12 @@ struct s_coils coils [num_coils] = {
 
 //  Coil Enum         Switch Num    Coil Num     Coil String        score
   { left_flipper,     0,            2,           "Left Flipper"     , 0},
-  { right_flipper,    0,            1,           "Right Flipper"    , 0},
-  { left_bumper,      1,            6,           "Left Bumper"      , 50},
-  { right_bumper,     2,            5,           "Right Bumper"     , 50},
-  { top_bumper,       3,            3,           "Top Bumper"       , 100},
-  { left_slingshot,   4,            7,           "Left Slingshot"   , 25},
-  { right_slingshot,  7,            7,           "Right Slingshot"  , 25}
+  { right_flipper,    1,            1,           "Right Flipper"    , 0},
+  { left_bumper,      4,            6,           "Left Bumper"      , 50},
+  { right_bumper,     5,            5,           "Right Bumper"     , 50},
+  { top_bumper,       6,            3,           "Top Bumper"       , 100},
+  { left_slingshot,   2,            8,           "Left Slingshot"   , 25},
+  { right_slingshot,  3,            7,           "Right Slingshot"  , 25}
 };
 
 void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
@@ -119,6 +119,16 @@ void setup() {
   mode = INIT;
 }
 
+void updateScore(uint16_t score, int player){
+  scorePlayer[player] += score;
+
+  //send score to 7 segment
+  scoreDisplay.println(scorePlayer[player]);
+  scoreDisplay.writeDisplay();
+  delay(10);
+  return;
+}
+
 void loop() {
 
   switch (mode){
@@ -150,6 +160,8 @@ void loop() {
     //set score display to 0
     scorePlayer[player] = 0;
     updateScore(0, player);
+
+    mode = PLAY;
     break;
 
     case PLAY: //--------------------------------------------------------------
@@ -175,9 +187,9 @@ void loop() {
     sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);
     #endif
 
-    delay(50); // Amount of time the solenoids are powered
+    delay(20); // Amount of time the solenoids are powered
     sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
-    delay(20); // Amount of time the solenoid is off
+    delay(10); // Amount of time the solenoid is off
 
     //check switches and update scores
 
@@ -192,9 +204,9 @@ void loop() {
         // 4) if gameBalls == maxBalls -> GAMEOVER
         mode = GAMEOVER;
       }*/
-    }
+    //}
 
-    case GAMEOVER:
+    /*case GAMEOVER:
     //turn off solenoids
 
     //send score to display
@@ -206,7 +218,7 @@ void loop() {
     }
 
     mode = INIT;
-    break;
+    break;*/
   }
 
 
@@ -238,12 +250,4 @@ void loop() {
   */
 }
 
-void updateScore(uint16_t score, int player){
-  scorePlayer[player] += score;
 
-  //send score to 7 segment
-  scoreDisplay.println(scorePlayer[player]);
-  scoreDisplay.writeDisplay();
-  delay(10);
-  return;
-}
