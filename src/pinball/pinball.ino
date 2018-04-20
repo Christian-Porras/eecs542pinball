@@ -1,5 +1,8 @@
 #include <SPI.h>
 #include <MuxShield.h>
+#include <wire.h>
+#include <Adafruit_GFX.h>
+#include "Adafruit_LEDBackpack.h"
 
 #define SOLENOIDS_ON true
 #define ENABLE_DEBUG true
@@ -17,7 +20,8 @@ unsigned char player = 0;         //tracks the current player playing
 //-------------------------
 //      SCOREBOARD
 //-------------------------
-long scorePlayer[5] = {0,0,0,0,0}; // array to hold the current players' scores
+uint16_t scorePlayer[5] = {0,0,0,0,0}; // array to hold the current players' scores
+Adafruit_7segment scoreDisplay = Adafruit_7segment(); //7segment display
 
 //-------------------------
 //      GAMEMODES
@@ -53,18 +57,19 @@ struct s_coils
   int switch_num;
   int coil_num;
   char* coil_name;
+  uint16_t score;
 };
 
 struct s_coils coils [num_coils] = {
 
-//  Coil Enum         Switch Num    Coil Num     Coil String
-  { left_flipper,     0,            2,           "Left Flipper" },
-  { right_flipper,    0,            1,           "Right Flipper" },
-  { left_bumper,      1,            6,           "Left Bumper" },
-  { right_bumper,     2,            5,           "Right Bumper" },
-  { top_bumper,       3,            3,           "Top Bumper" },
-  { left_slingshot,   4,            7,           "Left Slingshot" },
-  { right_slingshot,  7,            7,           "Right Slingshot" }
+//  Coil Enum         Switch Num    Coil Num     Coil String        score
+  { left_flipper,     0,            2,           "Left Flipper"     , 0},
+  { right_flipper,    0,            1,           "Right Flipper"    , 0},
+  { left_bumper,      1,            6,           "Left Bumper"      , 50},
+  { right_bumper,     2,            5,           "Right Bumper"     , 50},
+  { top_bumper,       3,            3,           "Top Bumper"       , 100},
+  { left_slingshot,   4,            7,           "Left Slingshot"   , 25},
+  { right_slingshot,  7,            7,           "Right Slingshot"  , 25}
 };
 
 void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
@@ -231,10 +236,12 @@ void loop() {
   */
 }
 
-void updateScore(long score, int player){
+void updateScore(uint16_t score, int player){
   scorePlayer[player] += score;
 
   //send score to 7 segment
-
+  scoreDisplay.println(scorePlayer[player]);
+  scoreDisplay.writeDisplay();
+  delay(10);
   return;
 }
