@@ -12,6 +12,8 @@
 #define num_coils 7
 #define board 0
 
+#define drawDots false
+
 //-------------------------
 //      SWITCHES
 //-------------------------
@@ -58,18 +60,19 @@ struct s_coils
   int coil_num;
   char* coil_name;
   uint16_t score;
+  int light_num;
 };
 
 struct s_coils coils [num_coils] = {
 
-//  Coil Enum         Switch Num    Coil Num     Coil String        score
-  { left_flipper,     0,            2,           "Left Flipper"     , 0},
-  { right_flipper,    1,            1,           "Right Flipper"    , 0},
-  { left_bumper,      4,            6,           "Left Bumper"      , 50},
-  { right_bumper,     5,            5,           "Right Bumper"     , 50},
-  { top_bumper,       6,            3,           "Top Bumper"       , 100},
-  { left_slingshot,   2,            8,           "Left Slingshot"   , 25},
-  { right_slingshot,  3,            7,           "Right Slingshot"  , 25}
+//  Coil Enum         Switch Num     Coil Num     Coil String         Score    Light Num
+  { left_flipper,     2,             2,           "Left Flipper",     0,       NULL        },
+  { right_flipper,    3,             1,           "Right Flipper",    0,       NULL        },
+  { left_bumper,      6,             6,           "Left Bumper",      50,      8           },
+  { right_bumper,     7,             5,           "Right Bumper",     50,      9           },
+  { top_bumper,       12,            3,           "Top Bumper",       100,     10          },
+  { left_slingshot,   4,             8,           "Left Slingshot",   25,      NULL        },
+  { right_slingshot,  5,             7,           "Right Slingshot",  25,      NULL        }
 };
 
 void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
@@ -95,7 +98,7 @@ void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
 }
 
 //Initialize the Mux Shield
-MuxShield muxShield;
+//MuxShield muxShield;
 #define input_port 2
 
 unsigned char mode = IDLE;
@@ -110,8 +113,16 @@ void setup() {
   // Start Serial for communication with Serial Monitor
   Serial.begin(9600);
 
+  scoreDisplay.begin(0x70);
+
   // Initialize the input port on the mux shield as digital input
-  muxShield.setMode( input_port, DIGITAL_IN );
+  //muxShield.setMode( input_port, DIGITAL_IN );
+
+  for( int i = 0; i < num_coils; i++ )
+  {
+    pinMode( coils[i].switch_num, INPUT );
+    pinMode( coils[i].light_num, OUTPUT );
+  }
 
   // Write all the solenoids low intially
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
@@ -119,77 +130,135 @@ void setup() {
   mode = INIT;
 }
 
-void updateScore(uint16_t score, int player){
-  scorePlayer[player] += score;
+void updateScore(uint16_t score, int player)
+{  
+  scorePlayer[player] = score;
 
-  //send score to 7 segment
-  scoreDisplay.println(scorePlayer[player]);
+  scoreDisplay.writeDigitNum(0, (scorePlayer[player] / 1000), drawDots);
+  scoreDisplay.writeDigitNum(1, (scorePlayer[player] / 100) % 10, drawDots);
+  scoreDisplay.writeDigitNum(3, (scorePlayer[player] / 10) % 10, drawDots);
+  scoreDisplay.writeDigitNum(4, scorePlayer[player] % 10, drawDots);
   scoreDisplay.writeDisplay();
   delay(10);
+  
   return;
 }
 
-void loop() {
+#define num_flashing_lights 3
 
+int flashing_lights [num_flashing_lights] = {
+  coils[top_bumper].light_num,
+  coils[right_bumper].light_num,
+  coils[left_bumper].light_num
+};
+
+int current_light;
+int flashing_score = 1;
+
+void loop() {
+  
   switch (mode){
 
     default:
 
     case INIT: //--------------------------------------------------------------
-    delay(250);
-    delay(250);
-    delay(250);
-    delay(250);
-
-    player = 0;
-    scorePlayer[player] = 0;
-
-    mode = IDLE;
-    break;
+      
+      delay(1000); // Wait For Power Up
+  
+      player = 0;
+      scorePlayer[player] = 0;
+  
+      mode = IDLE;
+            
+      break;
 
     case IDLE: //--------------------------------------------------------------
-    //light show
+      
+      // Light Show
+      digitalWrite( flashing_lights[1], HIGH );
+      digitalWrite( flashing_lights[0], LOW );
+          
+      // Rotate Array of Lights
+      current_light = flashing_lights[0];
+      for( int i = 0; i < num_flashing_lights - 1; i++ )
+      {
+        flashing_lights[i] = flashing_lights[i+1];
+      }
+      flashing_lights[num_flashing_lights - 1] = current_light;
+      
+      
+      //once start sensor detected, switch to start state
+      if( digitalRead( coils[right_flipper].switch_num ) )
+      {
+        mode = START;
+        for( int i = 0; i < num_coils; i++ )
+        {
+          digitalWrite( coils[i].light_num, HIGH );
+        }
+      }
 
-    //once start sensor detected, switch to start state
-    mode = START;
-    break;
+      updateScore( flashing_score, 0 );
+      if( flashing_score == 1000 )
+      {
+        flashing_score = 1;
+      }
+      else
+      {
+        flashing_score *= 10;
+      }
+
+      delay(500);
+      break;
 
     case START: //-------------------------------------------------------------
-    gameBalls = 1;
 
-    //set score display to 0
-    scorePlayer[player] = 0;
-    updateScore(0, player);
-
-    mode = PLAY;
-    break;
+      Serial.println( "Entered Start Mode" );
+      gameBalls = 1;
+  
+      //set score display to 0
+      scorePlayer[player] = 0;
+      updateScore(0, player);
+  
+      mode = PLAY;
+      break;
 
     case PLAY: //--------------------------------------------------------------
-    byte solenoids = 0;
-
-    for( int i = 0; i < num_coils; i++ )
-    {
-      if( muxShield.digitalReadMS( input_port, coils[i].switch_num ) )
+    
+      byte solenoids = 0;
+  
+      for( int i = 0; i < num_coils; i++ )
       {
-        solenoids += ( 1 << ( coils[i].coil_num - 1 ) );
+        if( digitalRead( coils[i].switch_num ) )
+        {
+          solenoids += ( 1 << ( coils[i].coil_num - 1 ) );
+          
+          updateScore( scorePlayer[player] + coils[i].score, player );
 
-        updateScore(coils[i].score, player);
-
-        #if ENABLE_DEBUG
-        Serial.print( coils[i].coil_name );
-        Serial.print( " Activated." );
-        Serial.println();
-        #endif
+          digitalWrite( coils[i].light_num, LOW );
+  
+          #if ENABLE_DEBUG
+          Serial.print( coils[i].coil_name );
+          Serial.print( " Activated." );
+          Serial.println();
+          #endif
+        }
       }
-    }
+  
+      #if SOLENOIDS_ON
+      sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);
+      #endif
+  
+      delay(20); // Amount of time the solenoids are powered
+      sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
+      delay(10); // Amount of time the solenoid is off
 
-    #if SOLENOIDS_ON
-    sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);
-    #endif
+      for( int i = 0; i < num_coils; i++ )
+      {
+        digitalWrite( coils[i].light_num, HIGH );
+      }
 
-    delay(20); // Amount of time the solenoids are powered
-    sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
-    delay(10); // Amount of time the solenoid is off
+
+//-----------------------------------------------------------------------------
 
     //check switches and update scores
 
