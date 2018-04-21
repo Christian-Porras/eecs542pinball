@@ -154,6 +154,8 @@ int flashing_lights [num_flashing_lights] = {
 
 int current_light;
 int flashing_score = 1;
+int delayTime = 500;
+int idleRunCount = 0;
 
 void loop() {
   
@@ -167,6 +169,7 @@ void loop() {
   
       player = 0;
       scorePlayer[player] = 0;
+      idleRunCount = 1;
   
       mode = IDLE;
             
@@ -207,7 +210,16 @@ void loop() {
         flashing_score *= 10;
       }
 
-      delay(500);
+      delay(delayTime);
+      if(delayTime == 100)
+      {
+        delayTime = 500;
+      }
+      else if(idleRunCount % 3 == 0)
+      {
+        delayTime -= 100;
+      }
+      idleRunCount ++;
       break;
 
     case START: //-------------------------------------------------------------
