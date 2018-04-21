@@ -12,6 +12,8 @@
 #define num_coils 7
 #define board 0
 
+#define num_sensors 4
+
 #define drawDots false
 
 //-------------------------
@@ -73,6 +75,33 @@ struct s_coils coils [num_coils] = {
   { top_bumper,       12,            3,           "Top Bumper",       100,     10          },
   { left_slingshot,   4,             8,           "Left Slingshot",   25,      NULL        },
   { right_slingshot,  5,             7,           "Right Slingshot",  25,      NULL        }
+};
+
+//-------------------------
+//      SWITCHES
+//-------------------------
+typedef enum e_sensors
+{
+  left_sensor1,
+  left_sensor2,
+  left_sensor3,
+  left_sensor4
+} sensor_t;
+
+struct s_sensors
+{
+  sensor_t sensor_enum;
+  int switch_num;
+  uint16_t score;
+};
+
+struct s_sensors sensors [num_sensors] = {
+
+//  Coil Enum         Switch Num     Score
+  { left_sensor1,     A2,             10 },
+  { left_sensor2,     A3,             10 },
+  { left_sensor3,     A4,             10 },
+  { left_sensor4,     A5,             10 }
 };
 
 void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
@@ -250,6 +279,20 @@ void loop() {
   
           #if ENABLE_DEBUG
           Serial.print( coils[i].coil_name );
+          Serial.print( " Activated." );
+          Serial.println();
+          #endif
+        }
+      }
+      
+      for( int i = 0; i < num_sensors; i++ )
+      {
+        if( digitalRead( sensors[i].switch_num ) )
+        {
+          updateScore( scorePlayer[player] + sensors[i].score, player );
+  
+          #if ENABLE_DEBUG
+          Serial.print( sensors[i].switch_num );
           Serial.print( " Activated." );
           Serial.println();
           #endif
