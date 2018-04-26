@@ -12,7 +12,7 @@
 #define num_coils 7
 #define board 0
 
-#define num_sensors 4
+#define num_sensors 8
 
 #define drawDots false
 
@@ -68,13 +68,13 @@ struct s_coils
 struct s_coils coils [num_coils] = {
 
 //  Coil Enum         Switch Num     Coil Num     Coil String         Score    Light Num
-  { left_flipper,     2,             2,           "Left Flipper",     0,       NULL        },
-  { right_flipper,    3,             1,           "Right Flipper",    0,       NULL        },
-  { left_bumper,      6,             6,           "Left Bumper",      50,      8           },
-  { right_bumper,     7,             5,           "Right Bumper",     50,      9           },
-  { top_bumper,       12,            3,           "Top Bumper",       100,     10          },
-  { left_slingshot,   4,             8,           "Left Slingshot",   25,      NULL        },
-  { right_slingshot,  5,             7,           "Right Slingshot",  25,      NULL        }
+  { left_flipper,     0,             2,           "Left Flipper",     0,       NULL        },
+  { right_flipper,    1,             1,           "Right Flipper",    0,       NULL        },
+  { left_bumper,      2,             6,           "Left Bumper",      50,      15           },
+  { right_bumper,     3,             5,           "Right Bumper",     50,      14           },
+  { top_bumper,       4,             3,           "Top Bumper",       100,     13          },
+  { left_slingshot,   5,             8,           "Left Slingshot",   25,      NULL        },
+  { right_slingshot,  6,             7,           "Right Slingshot",  25,      NULL        }
 };
 
 //-------------------------
@@ -85,7 +85,11 @@ typedef enum e_sensors
   left_sensor1,
   left_sensor2,
   left_sensor3,
-  left_sensor4
+  left_sensor4,
+  right_sensor1,
+  right_sensor2,
+  right_sensor3,
+  right_sensor4
 } sensor_t;
 
 struct s_sensors
@@ -97,11 +101,15 @@ struct s_sensors
 
 struct s_sensors sensors [num_sensors] = {
 
-//  Coil Enum         Switch Num     Score
-  { left_sensor1,     A2,             10 },
-  { left_sensor2,     A3,             10 },
-  { left_sensor3,     A4,             10 },
-  { left_sensor4,     A5,             10 }
+//  Coil Enum          Switch Num      Score
+  { left_sensor1,      7,              10 },
+  { left_sensor2,      8,              10 },
+  { left_sensor3,      9,              10 },
+  { left_sensor4,      10,             10 },
+  { right_sensor1,     11,             10 },
+  { right_sensor2,     12,             10 },
+  { right_sensor3,     13,             10 },
+  { right_sensor4,     14,             10 }
 };
 
 void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
@@ -127,8 +135,9 @@ void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
 }
 
 //Initialize the Mux Shield
-//MuxShield muxShield;
+MuxShield muxShield;
 #define input_port 2
+#define output_port 3
 
 unsigned char mode = IDLE;
 
@@ -145,17 +154,13 @@ void setup() {
   scoreDisplay.begin(0x70);
 
   // Initialize the input port on the mux shield as digital input
-  //muxShield.setMode( input_port, DIGITAL_IN );
-
-  for( int i = 0; i < num_coils; i++ )
-  {
-    pinMode( coils[i].switch_num, INPUT );
-    pinMode( coils[i].light_num, OUTPUT );
-  }
+  muxShield.setMode( input_port, DIGITAL_IN );
+  muxShield.setMode( output_port, DIGITAL_OUT );
 
   // Write all the solenoids low intially
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
 
+  Serial.println( "Setup Complete" );
   mode = INIT;
 }
 
@@ -183,7 +188,7 @@ int flashing_lights [num_flashing_lights] = {
 
 int current_light;
 int flashing_score = 1;
-int delayTime = 500;
+int delayTime = 175;
 int idleRunCount = 0;
 
 void loop() {
@@ -205,10 +210,11 @@ void loop() {
       break;
 
     case IDLE: //--------------------------------------------------------------
-      
+
+      Serial.println( "Idle Mode" );
       // Light Show
-      digitalWrite( flashing_lights[1], HIGH );
-      digitalWrite( flashing_lights[0], LOW );
+      muxShield.digitalWriteMS( output_port, flashing_lights[1], HIGH );
+      muxShield.digitalWriteMS( output_port, flashing_lights[0], LOW );
           
       // Rotate Array of Lights
       current_light = flashing_lights[0];
@@ -220,12 +226,12 @@ void loop() {
       
       
       //once start sensor detected, switch to start state
-      if( digitalRead( coils[right_flipper].switch_num ) )
+      if( muxShield.digitalReadMS( input_port, coils[right_flipper].switch_num ) )
       {
         mode = START;
-        for( int i = 0; i < num_coils; i++ )
+        for( int i = 0; i < num_flashing_lights; i++ )
         {
-          digitalWrite( coils[i].light_num, HIGH );
+          muxShield.digitalWriteMS( output_port, flashing_lights[i], HIGH );
         }
       }
 
@@ -239,14 +245,15 @@ void loop() {
         flashing_score *= 10;
       }
 
+      Serial.println( delayTime );
       delay(delayTime);
-      if(delayTime == 100)
+      if(delayTime == 25)
       {
-        delayTime = 500;
+        delayTime = 175;
       }
       else if(idleRunCount % 3 == 0)
       {
-        delayTime -= 100;
+        delayTime -= 25;
       }
       idleRunCount ++;
       break;
@@ -269,13 +276,13 @@ void loop() {
   
       for( int i = 0; i < num_coils; i++ )
       {
-        if( digitalRead( coils[i].switch_num ) )
+        if( muxShield.digitalReadMS( input_port, coils[i].switch_num ) )
         {
           solenoids += ( 1 << ( coils[i].coil_num - 1 ) );
           
           updateScore( scorePlayer[player] + coils[i].score, player );
 
-          digitalWrite( coils[i].light_num, LOW );
+          muxShield.digitalWriteMS( output_port, coils[i].light_num, LOW );
   
           #if ENABLE_DEBUG
           Serial.print( coils[i].coil_name );
@@ -287,7 +294,7 @@ void loop() {
       
       for( int i = 0; i < num_sensors; i++ )
       {
-        if( digitalRead( sensors[i].switch_num ) )
+        if( muxShield.digitalReadMS( input_port, sensors[i].switch_num ) )
         {
           updateScore( scorePlayer[player] + sensors[i].score, player );
   
@@ -309,7 +316,7 @@ void loop() {
 
       for( int i = 0; i < num_coils; i++ )
       {
-        digitalWrite( coils[i].light_num, HIGH );
+        muxShield.digitalWriteMS( output_port, coils[i].light_num, HIGH );
       }
 
 
