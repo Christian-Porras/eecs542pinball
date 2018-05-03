@@ -63,18 +63,19 @@ struct s_coils
   char* coil_name;
   uint16_t score;
   int light_num;
+  int bank;
 };
 
 struct s_coils coils [num_coils] = {
 
 //  Coil Enum         Switch Num     Coil Num     Coil String         Score    Light Num
-  { left_flipper,     0,             2,           "Left Flipper",     0,       NULL        },
-  { right_flipper,    1,             1,           "Right Flipper",    0,       NULL        },
-  { left_bumper,      2,             6,           "Left Bumper",      50,      15           },
-  { right_bumper,     3,             5,           "Right Bumper",     50,      14           },
-  { top_bumper,       4,             3,           "Top Bumper",       100,     13          },
-  { left_slingshot,   5,             8,           "Left Slingshot",   25,      NULL        },
-  { right_slingshot,  6,             7,           "Right Slingshot",  25,      NULL        }
+  { left_flipper,     0,             2,           "Left Flipper",     0,       NULL,        1 },
+  { right_flipper,    1,             1,           "Right Flipper",    0,       NULL,        1 },
+  { left_bumper,      2,             6,           "Left Bumper",      50,      15,          1 },
+  { right_bumper,     3,             5,           "Right Bumper",     50,      14,          1 },
+  { top_bumper,       4,             3,           "Top Bumper",       100,     13,          1 },
+  { left_slingshot,   5,             1,           "Left Slingshot",   25,      NULL,        0 },
+  { right_slingshot,  6,             7,           "Right Slingshot",  25,      NULL,        1 }
 };
 
 //-------------------------
@@ -159,6 +160,7 @@ void setup() {
 
   // Write all the solenoids low intially
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
+  sendPDBCommand(board, PDB_COMMAND_WRITE, 0, 0b00000000);
 
   Serial.println( "Setup Complete" );
   mode = INIT;
@@ -272,13 +274,22 @@ void loop() {
 
     case PLAY: //--------------------------------------------------------------
     
-      byte solenoids = 0;
+      byte solenoids_1 = 0;
+      byte solenoids_0 = 0;
   
       for( int i = 0; i < num_coils; i++ )
       {
         if( muxShield.digitalReadMS( input_port, coils[i].switch_num ) )
         {
-          solenoids += ( 1 << ( coils[i].coil_num - 1 ) );
+          if( coils[i].bank == 1 )
+          {
+            solenoids_1 += ( 1 << ( coils[i].coil_num - 1 ) );
+          }
+          else if( coils[i].bank == 0 )
+          {
+            solenoids_0 += ( 1 << ( coils[i].coil_num - 1 ) );
+          }
+          
           
           updateScore( scorePlayer[player] + coils[i].score, player );
 
@@ -307,11 +318,13 @@ void loop() {
       }
   
       #if SOLENOIDS_ON
-      sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids);
+      sendPDBCommand(board, PDB_COMMAND_WRITE, 1, solenoids_1);
+      sendPDBCommand(board, PDB_COMMAND_WRITE, 0, solenoids_0);
       #endif
   
       delay(20); // Amount of time the solenoids are powered
       sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0);
+      sendPDBCommand(board, PDB_COMMAND_WRITE, 0, 0);
       delay(10); // Amount of time the solenoid is off
 
       for( int i = 0; i < num_coils; i++ )
