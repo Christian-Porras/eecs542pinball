@@ -18,9 +18,8 @@
 #define drawDots false
 
 //-------------------------
-//     JSON PARSER/FILE
+//       JSON FILE
 //-------------------------
-StaticJsonBuffer<237> jsonBuffer;
 char json[] = "{"
                 "\"Coils\":{"
                             "\"Left Bumper\":50,"
@@ -189,6 +188,7 @@ void setup() {
   sendPDBCommand(board, PDB_COMMAND_WRITE, 0, 0b00000000);
 
   // Parse in JSON
+  StaticJsonBuffer<237> jsonBuffer;
   JsonObject& root = jsonBuffer.parseObject(json);
 
   // Set scores based on JSON input
