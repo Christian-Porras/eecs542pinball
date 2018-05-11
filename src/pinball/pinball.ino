@@ -3,6 +3,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include "Adafruit_LEDBackpack.h"
+#include <ArduinoJson.h>
 
 #define SOLENOIDS_ON true
 #define ENABLE_DEBUG true
@@ -15,6 +16,30 @@
 #define num_sensors 8
 
 #define drawDots false
+
+//-------------------------
+//     JSON PARSER/FILE
+//-------------------------
+StaticJsonBuffer<237> jsonBuffer;
+char json[] = "{"
+                "\"Coils\":{"
+                            "\"Left Bumper\":50,"
+                            "\"Right Bumper\":50,"
+                            "\"Top Bumper\":100,"
+                            "\"Left Slingshot\":25,"
+                            "\"Right Slingshot\":25"
+                          "},"
+                "\"Sensors\":{"
+                              "\"Left Sensor 1\":10,"
+                              "\"Left Sensor 2\":10,"
+                              "\"Left Sensor 3\":10,"
+                              "\"Left Sensor 4\":10,"
+                              "\"Right Sensor 1\":10,"
+                              "\"Right Sensor 2\":10,"
+                              "\"Right Sensor 3\":10,"
+                              "\"Right Sensor 4\":10"
+                            "}"
+              "}";
 
 //-------------------------
 //      SWITCHES
@@ -97,20 +122,21 @@ struct s_sensors
 {
   sensor_t sensor_enum;
   int switch_num;
+  char* switch_name;
   uint16_t score;
 };
 
 struct s_sensors sensors [num_sensors] = {
 
-//  Coil Enum          Switch Num      Score
-  { left_sensor1,      7,              10 },
-  { left_sensor2,      8,              10 },
-  { left_sensor3,      9,              10 },
-  { left_sensor4,      10,             10 },
-  { right_sensor1,     11,             10 },
-  { right_sensor2,     12,             10 },
-  { right_sensor3,     13,             10 },
-  { right_sensor4,     14,             10 }
+//  Sensor Enum        Switch Num    Switch Name          Score
+  { left_sensor1,      7,            "Left Sensor 1",      10 },
+  { left_sensor2,      8,            "Left Sensor 2",      10 },
+  { left_sensor3,      9,            "Left Sensor 3",      10 },
+  { left_sensor4,      10,           "Left Sensor 4",      10 },
+  { right_sensor1,     11,           "Right Sensor 1",     10 },
+  { right_sensor2,     12,           "Right Sensor 2",     10 },
+  { right_sensor3,     13,           "Right Sensor 3",     10 },
+  { right_sensor4,     14,           "Right Sensor 4",     10 }
 };
 
 void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
@@ -161,6 +187,19 @@ void setup() {
   // Write all the solenoids low intially
   sendPDBCommand(board, PDB_COMMAND_WRITE, 1, 0b00000000);
   sendPDBCommand(board, PDB_COMMAND_WRITE, 0, 0b00000000);
+
+  // Parse in JSON
+  JsonObject& root = jsonBuffer.parseObject(json);
+
+  // Set scores based on JSON input
+  JsonObject& jsonCoils = root["Coils"];
+  for (int i=0; i<num_coils; i++) {
+    coils[i].score = jsonCoils.get<uint16_t>(coils[i].coil_name) == NULL ? coils[i].score : jsonCoils.get<uint16_t>(coils[i].coil_name);
+  }
+  JsonObject& jsonSensors = root["Sensors"];
+  for (int i=0; i<num_sensors; i++) {
+    sensors[i].score = jsonSensors.get<uint16_t>(sensors[i].switch_name) == NULL ? sensors[i].score : jsonSensors.get<uint16_t>(sensors[i].switch_name);
+  }
 
   Serial.println( "Setup Complete" );
   mode = INIT;
