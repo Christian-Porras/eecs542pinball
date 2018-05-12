@@ -137,7 +137,7 @@ void sendPDBCommand(byte addr, byte command, byte bankAddr, byte data)
 
 //Initialize the Mux Shield
 MuxShield muxShield;
-#define input_port 2
+#define input_port 1
 #define output_port 3
 
 unsigned char mode = IDLE;
